@@ -31,9 +31,10 @@ object ParallelEffectsExample extends zio.App {
     for {
       fiber1 <- myEffect1.fork
       fiber2 <- myEffect2.fork
-      fiber = fiber1.zip(fiber2)
-      numOfFailures <- fiber.join
-      _ <- if (numOfFailures._1 + numOfFailures._2 >= 2) { Task.fail(new RuntimeException("Job failed!")) }
-           else Task.succeed("Success!")
+      fiber1FailedOrNot <- fiber1.join
+      fiber2FailedOrNot <- fiber2.join
+      _ <- if (fiber1FailedOrNot + fiber2FailedOrNot >= 2) {
+              Task.fail(new RuntimeException("Job failed!"))
+           } else Task.succeed("Success!")
     } yield ()
 }
