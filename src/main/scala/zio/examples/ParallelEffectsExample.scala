@@ -14,7 +14,8 @@ object ParallelEffectsExample extends zio.App {
         println("Effect 1 works!")
       }
     }.fold(e => {
-      println(e); 1
+      println(e);
+      1
     }, _ => 0)
 
   val myEffect2: URIO[Any, Int] =
@@ -24,17 +25,28 @@ object ParallelEffectsExample extends zio.App {
         println("Effect 2 works!")
       }
     }.fold(e => {
-      println(e); 1
+      println(e);
+      1
     }, _ => 0)
+
+  val myEffect3: URIO[Any, Int] =
+    ZIO.effect {
+      //throw new RuntimeException("Exception 3")
+      (1 to 10).foreach { _ =>
+        println("Effect 3 works!")
+      }
+    }.fold(e => {
+      println(e);
+      1
+    }, _ => 0)
+
+  val effectsToRun = Seq(myEffect1, myEffect2, myEffect3)
 
   val myAppLogic: ZIO[Any, Throwable, Unit] =
     for {
-      fiber1 <- myEffect1.fork
-      fiber2 <- myEffect2.fork
-      fiber1FailedOrNot <- fiber1.join
-      fiber2FailedOrNot <- fiber2.join
-      _ <- if (fiber1FailedOrNot + fiber2FailedOrNot >= 2) {
-              Task.fail(new RuntimeException("Job failed!"))
-           } else Task.succeed("Success!")
+      r <- ZIO.reduceAllPar(effectsToRun.head, effectsToRun.tail)(_ + _)
+      _ <- if (r >= effectsToRun.size) Task.fail(new RuntimeException("Job failed!"))
+           else if (r == 0) Task.succeed("Job fully success!")
+           else Task.succeed("Job partially success!")
     } yield ()
 }
