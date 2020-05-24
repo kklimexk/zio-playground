@@ -8,6 +8,8 @@ lazy val zioVersion = "1.0.0-RC19"
 lazy val sparkVersion = "2.4.5"
 lazy val deltaVersion = "0.6.0"
 
+addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1")
+
 libraryDependencies ++= Seq(
   "dev.zio" %% "zio" % zioVersion,
   "org.apache.spark" %% "spark-core" % sparkVersion,
