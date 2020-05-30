@@ -3,18 +3,19 @@ package zio.examples
 import org.apache.spark.sql.SparkSession
 import zio.{Task, URIO, ZIO}
 
-object SparkEffectsExample extends zio.App {
+object SparkEffectsExample {
 
   final case class Event(id: Int, name: String)
 
   val targetTablePath = "tmp/events"
   val partitionKey = "id"
 
-  def run(args: List[String]): ZIO[zio.ZEnv, Nothing, Int] =
-    myAppLogic.provide(SparkSession.builder()
+  def main(args: Array[String]): Unit = {
+    zio.Runtime.default.unsafeRun(myAppLogic.provide(SparkSession.builder()
       .master("local[*]")
       .appName("SparkParallelEffects")
-      .getOrCreate()).fold(e => throw e, _ => 0)
+      .getOrCreate()))
+  }
 
   def myEffect1(implicit spark: SparkSession): URIO[Any, Int] =
     ZIO.effect {
@@ -61,8 +62,8 @@ object SparkEffectsExample extends zio.App {
       effectsToRun = Seq(myEffect1, myEffect2, myEffect3)
       r <- ZIO.reduceAll(effectsToRun.head, effectsToRun.tail)(_ + _)
       _ <- if (r >= effectsToRun.size) Task.fail(new RuntimeException("Job failed!"))
-           else if (r == 0) Task.succeed("Job fully success!")
-           else Task.succeed("Job partially success!")
+      else if (r == 0) Task.succeed("Job fully success!")
+      else Task.succeed("Job partially success!")
       _ <- checkDeltaTableEffect
     } yield ()
 }

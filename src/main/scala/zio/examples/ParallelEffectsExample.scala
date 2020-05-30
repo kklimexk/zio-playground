@@ -5,9 +5,7 @@ import zio.{Task, URIO, ZIO}
 object ParallelEffectsExample {
 
   def main(args: Array[String]): Unit = {
-    val runtime = zio.Runtime.default
-
-    runtime.unsafeRunTask(myAppLogic)
+    zio.Runtime.default.unsafeRun(myAppLogic)
   }
 
   val myEffect1: URIO[Any, Int] =
