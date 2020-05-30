@@ -3,7 +3,7 @@ package zio.examples
 import org.apache.spark.sql.SparkSession
 import zio.{Task, URIO, ZIO}
 
-object SparkParallelStreamEffectsExample extends zio.App {
+object SparkParallelStreamEffectsExample {
 
   final case class Event(id: Int, name: String)
 
@@ -15,11 +15,12 @@ object SparkParallelStreamEffectsExample extends zio.App {
 
   val partitionKey = "id"
 
-  def run(args: List[String]): ZIO[zio.ZEnv, Nothing, Int] =
-    myAppLogic.provide(SparkSession.builder()
+  def main(args: Array[String]): Unit = {
+    zio.Runtime.default.unsafeRun(myAppLogic.provide(SparkSession.builder()
       .master("local[*]")
       .appName("SparkParallelEffects")
-      .getOrCreate()).fold(e => throw e, _ => 0)
+      .getOrCreate()))
+  }
 
   def myEffect1(implicit spark: SparkSession): URIO[Any, Int] =
     Task.effectAsync[Nothing] { _ =>
