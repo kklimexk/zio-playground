@@ -2,10 +2,13 @@ package zio.examples
 
 import zio.{Task, URIO, ZIO}
 
-object ParallelEffectsExample extends zio.App {
+object ParallelEffectsExample {
 
-  def run(args: List[String]): ZIO[zio.ZEnv, Nothing, Int] =
-    myAppLogic.fold(e => throw e, _ => 0)
+  def main(args: Array[String]): Unit = {
+    val runtime = zio.Runtime.default
+
+    runtime.unsafeRunTask(myAppLogic)
+  }
 
   val myEffect1: URIO[Any, Int] =
     ZIO.effect {
