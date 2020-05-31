@@ -1,19 +1,26 @@
 package zio.examples
 
 import org.apache.spark.sql.SparkSession
-import zio.examples.common._
 import zio._
+import zio.examples.common._
 
 object SparkEffectsExample {
 
   final case class Event(id: Int, name: String)
   final case class Config(targetTablePath: String, partitionKey: String)
 
-  val configurationLayer: Layer[Nothing, Has[Config]] =
-    ZLayer.succeed(Config("tmp/events", "id"))
+  val configurationLayer: ZLayer[Has[SparkSession], Throwable, Has[Config]] =
+    ZLayer.fromFunctionM { spark =>
+      println(s"APP_NAME = ${spark.get.sparkContext.appName}")
+      println(s"APPLICATION_ID = ${spark.get.sparkContext.applicationId}")
+      println(s"DEFAULT_PARALLELISM = ${spark.get.sparkContext.defaultParallelism}")
+      println(s"DEPLOY_MODE = ${spark.get.sparkContext.deployMode}")
+
+      Task.effect(Config("tmp/events", "id"))
+    }
 
   def main(args: Array[String]): Unit = {
-    val layers = sparkSessionLayer ++ configurationLayer
+    val layers = sparkSessionLayer ++ (sparkSessionLayer >>> configurationLayer)
 
     zio.Runtime.default.unsafeRun(myAppLogic.provideLayer(layers))
   }
