@@ -23,45 +23,45 @@ object SparkParallelStreamEffectsExample {
   }
 
   def myEffect1(implicit spark: SparkSession): URIO[Any, Int] =
-    Task.effectAsync[Nothing] { _ =>
-      //throw new RuntimeException("Exception 1")
+    Task.effect {
       val events = spark.readStream.format("delta").load(targetTablePath)
-      events.writeStream
+      val query = events.writeStream
         .format("delta")
         .partitionBy(partitionKey)
         .outputMode("append")
         .option("checkpointLocation", s"$targetTablePath1/_checkpoints")
         .start(targetTablePath1)
+      query.awaitTermination()
     }.fold(e => {
       println(e)
       1
     }, _ => 0)
 
   def myEffect2(implicit spark: SparkSession): URIO[Any, Int] =
-    Task.effectAsync[Nothing] { _ =>
-      //throw new RuntimeException("Exception 2")
+    Task.effect {
       val events = spark.readStream.format("delta").load(targetTablePath)
-      events.writeStream
+      val query = events.writeStream
         .format("delta")
         .partitionBy(partitionKey)
         .outputMode("append")
         .option("checkpointLocation", s"$targetTablePath2/_checkpoints")
         .start(targetTablePath2)
+      query.awaitTermination()
     }.fold(e => {
       println(e)
       1
     }, _ => 0)
 
   def myEffect3(implicit spark: SparkSession): URIO[Any, Int] =
-    Task.effectAsync[Nothing] { _ =>
-      //throw new RuntimeException("Exception 3")
+    Task.effect {
       val events = spark.readStream.format("delta").load(targetTablePath)
-      events.writeStream
+      val query = events.writeStream
         .format("delta")
         .partitionBy(partitionKey)
         .outputMode("append")
         .option("checkpointLocation", s"$targetTablePath3/_checkpoints")
         .start(targetTablePath3)
+      query.awaitTermination()
     }.fold(e => {
       println(e)
       1
@@ -84,8 +84,8 @@ object SparkParallelStreamEffectsExample {
       effectsToRun = Seq(myEffect1, myEffect2, myEffect3)
       r <- ZIO.reduceAllPar(effectsToRun.head, effectsToRun.tail)(_ + _)
       _ <- if (r >= effectsToRun.size) Task.fail(new RuntimeException("Job failed!"))
-           else if (r == 0) Task.succeed("Job fully success!")
-           else Task.succeed("Job partially success!")
+      else if (r == 0) Task.succeed("Job fully success!")
+      else Task.succeed("Job partially success!")
       //_ <- checkDeltaTableEffect
     } yield ()
 }
