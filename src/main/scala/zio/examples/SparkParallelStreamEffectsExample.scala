@@ -78,7 +78,7 @@ object SparkParallelStreamEffectsExample {
   val myAppLogic: ZIO[Has[SparkSession], Throwable, Unit] =
     for {
       implicit0(spark: SparkSession) <- ZIO.access[Has[SparkSession]](_.get[SparkSession])
-      _ <- SparkEffectsExample.myAppLogic.provideLayer(sparkSessionLayer)
+      _ <- SparkEffectsExample.myAppLogic.provideLayer(sparkSessionLayer ++ SparkEffectsExample.configurationLayer)
       effectsToRun = Seq(myEffect1, myEffect2, myEffect3)
       r <- ZIO.reduceAllPar(effectsToRun.head, effectsToRun.tail)(_ + _)
       _ <- if (r >= effectsToRun.size) Task.fail(new RuntimeException("Job failed!"))
