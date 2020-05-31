@@ -1,7 +1,8 @@
 package zio.examples
 
 import org.apache.spark.sql.SparkSession
-import zio.{Task, URIO, ZIO}
+import zio.{Has, Task, URIO, ZIO}
+import common._
 
 object SparkEffectsExample {
 
@@ -11,10 +12,7 @@ object SparkEffectsExample {
   val partitionKey = "id"
 
   def main(args: Array[String]): Unit = {
-    zio.Runtime.default.unsafeRun(myAppLogic.provide(SparkSession.builder()
-      .master("local[*]")
-      .appName("SparkParallelEffects")
-      .getOrCreate()))
+    zio.Runtime.default.unsafeRun(myAppLogic.provideLayer(sparkSessionLayer))
   }
 
   def myEffect1(implicit spark: SparkSession): URIO[Any, Int] =
@@ -56,9 +54,9 @@ object SparkEffectsExample {
       res.groupBy(partitionKey).count().sort("count").show(false)
     }
 
-  val myAppLogic: ZIO[SparkSession, Throwable, Unit] =
+  val myAppLogic: ZIO[Has[SparkSession], Throwable, Unit] =
     for {
-      implicit0(spark: SparkSession) <- ZIO.environment[SparkSession]
+      implicit0(spark: SparkSession) <- ZIO.access[Has[SparkSession]](_.get[SparkSession])
       effectsToRun = Seq(myEffect1, myEffect2, myEffect3)
       r <- ZIO.reduceAll(effectsToRun.head, effectsToRun.tail)(_ + _)
       _ <- if (r >= effectsToRun.size) Task.fail(new RuntimeException("Job failed!"))

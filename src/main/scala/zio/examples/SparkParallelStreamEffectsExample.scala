@@ -1,7 +1,8 @@
 package zio.examples
 
 import org.apache.spark.sql.SparkSession
-import zio.{Task, URIO, ZIO}
+import zio.examples.common._
+import zio.{Has, Task, URIO, ZIO}
 
 object SparkParallelStreamEffectsExample {
 
@@ -16,10 +17,7 @@ object SparkParallelStreamEffectsExample {
   val partitionKey = "id"
 
   def main(args: Array[String]): Unit = {
-    zio.Runtime.default.unsafeRun(myAppLogic.provide(SparkSession.builder()
-      .master("local[*]")
-      .appName("SparkParallelEffects")
-      .getOrCreate()))
+    zio.Runtime.default.unsafeRun(myAppLogic.provideLayer(sparkSessionLayer))
   }
 
   def myEffect1(implicit spark: SparkSession): URIO[Any, Int] =
@@ -77,10 +75,10 @@ object SparkParallelStreamEffectsExample {
       res3.groupBy(partitionKey).count().sort("count").show(false)
     }
 
-  val myAppLogic: ZIO[SparkSession, Throwable, Unit] =
+  val myAppLogic: ZIO[Has[SparkSession], Throwable, Unit] =
     for {
-      implicit0(spark: SparkSession) <- ZIO.environment[SparkSession]
-      _ <- SparkEffectsExample.myAppLogic.provide(spark)
+      implicit0(spark: SparkSession) <- ZIO.access[Has[SparkSession]](_.get[SparkSession])
+      _ <- SparkEffectsExample.myAppLogic.provideLayer(sparkSessionLayer)
       effectsToRun = Seq(myEffect1, myEffect2, myEffect3)
       r <- ZIO.reduceAllPar(effectsToRun.head, effectsToRun.tail)(_ + _)
       _ <- if (r >= effectsToRun.size) Task.fail(new RuntimeException("Job failed!"))
