@@ -3,7 +3,7 @@ package zio.examples
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.streaming.StreamingQuery
 import zio.examples.common._
-import zio.{Has, Task, ZIO}
+import zio.{Has, Task, URIO, ZIO}
 
 object SparkParallelStreamEffectsExample {
 
@@ -21,7 +21,7 @@ object SparkParallelStreamEffectsExample {
     zio.Runtime.default.unsafeRun(myAppLogic.provideLayer(sparkSessionLayer))
   }
 
-  def myEffect1(implicit spark: SparkSession): Task[StreamingQuery] =
+  def myEffect1(implicit spark: SparkSession): URIO[Any, Option[StreamingQuery]] =
     Task.effect {
       val events = spark.readStream.format("delta").load(targetTablePath)
       events.writeStream
@@ -30,9 +30,12 @@ object SparkParallelStreamEffectsExample {
         .outputMode("append")
         .option("checkpointLocation", s"$targetTablePath1/_checkpoints")
         .start(targetTablePath1)
-    }
+    }.fold(e => {
+      println(e)
+      None
+    }, q => Some(q))
 
-  def myEffect2(implicit spark: SparkSession): Task[StreamingQuery] =
+  def myEffect2(implicit spark: SparkSession): URIO[Any, Option[StreamingQuery]] =
     Task.effect {
       val events = spark.readStream.format("delta").load(targetTablePath)
       events.writeStream
@@ -41,9 +44,12 @@ object SparkParallelStreamEffectsExample {
         .outputMode("append")
         .option("checkpointLocation", s"$targetTablePath2/_checkpoints")
         .start(targetTablePath2)
-    }
+    }.fold(e => {
+      println(e)
+      None
+    }, q => Some(q))
 
-  def myEffect3(implicit spark: SparkSession): Task[StreamingQuery] =
+  def myEffect3(implicit spark: SparkSession): URIO[Any, Option[StreamingQuery]] =
     Task.effect {
       val events = spark.readStream.format("delta").load(targetTablePath)
       events.writeStream
@@ -52,7 +58,10 @@ object SparkParallelStreamEffectsExample {
         .outputMode("append")
         .option("checkpointLocation", s"$targetTablePath3/_checkpoints")
         .start(targetTablePath3)
-    }
+    }.fold(e => {
+      println(e)
+      None
+    }, q => Some(q))
 
   def awaitAllStreamingQueries(streamingQueries: Seq[StreamingQuery]): Task[Unit] =
     Task.effect(streamingQueries.foreach(_.awaitTermination()))
@@ -73,7 +82,7 @@ object SparkParallelStreamEffectsExample {
       _ <- SparkEffectsExample.myAppLogic.provideLayer(sparkSessionLayer ++ SparkEffectsExample.configurationLayer)
       effectsToRun = Seq(myEffect1, myEffect2, myEffect3)
       streamingQueries <- ZIO.collectAllPar(effectsToRun)
-      _ <- awaitAllStreamingQueries(streamingQueries)
+      _ <- awaitAllStreamingQueries(streamingQueries.filter(_.nonEmpty).map(_.get))
       //_ <- checkDeltaTableEffect
     } yield ()
 }
